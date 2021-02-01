@@ -18,5 +18,8 @@
   "license": "CC0-1.0",
   "devDependencies": {
     "electron": "^11.2.1"
+  },
+  "dependencies": {
+    "coinbase": "^2.0.8"
   }
 }
