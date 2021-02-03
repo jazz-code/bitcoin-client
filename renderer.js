@@ -4,6 +4,15 @@
 // `nodeIntegration` is turned off. Use `preload.js` to
 // selectively enable features needed in the rendering
 // process.
+const {dialog, BrowserWindow} = require('electron').remote
+
+const {
+    getHowManyBtcCanIBuy,
+    getTotalPriceOfBtcAmount,
+    refreshRealData
+} = require('./utils')
+
+
 const Client = require('coinbase').Client;
 
 const client = new Client({ 'apiKey': '<apiKey>', 'apiSecret': '<apiSecret>'}) 
@@ -31,3 +40,75 @@ let fiatCurrency = 'USD';
 
 let currentBalanceFiat = useSandboxMode ? 5000 : 0;
 let currentBalanceBtc = useSandboxMode ? 3 : 0;
+
+buyBtnElement.addEventListener('click', (event) => {
+        /*
+    After clicking the "Buy" button we would like to buy BTCs. The amount is going to be defined
+    by the number of Fiat that we specify in the input.
+    */
+   let successfulDialog = (btcAmount) => {
+       let options = {
+           type: 'info',
+           title: 'Thanks!',
+           message: `You bought ${btcAmount} BTC!`
+       }
+       dialog.showMessageBox(options)
+   }
+   let failureDialog = (message) => {
+       let options = {
+           type: 'error',
+           title: 'Error',
+           message: message
+       }
+       dialog.showMessageBox(options)
+   }
+
+   let money = parseFloat(inputAmountFiatElement.value);
+   if (!money) {
+       failureDialog('Invalid value!')
+       return
+   }
+   getHowManyBtcCanIBuy(client, fiatCurrency, money, useSandboxMode, fakeBTCPrice).then((btcAmount) => {
+       if (useSandboxMode) {
+           if (money > currentBalanceFiat) {
+            failureDialog('Sorry! You don\'t have enough money in your account!');
+            return
+        }
+        successfulDialog(btcAmount);
+        // Update the 'fake' balances
+        currentBalanceFiat -= money;
+        currentBalanceBtc += btcAmount;
+        userBalanceFiatElement.innerHTML = 'Balance ' + fiatCurrency + ': ' + currentBalanceFiat + ' ' + fiatCurrency;
+        userBalanceBtcElement.innerHTML = 'Balance BTC: ' + currentBalanceBtc + ' BTC';
+        
+       } else {
+           client.getAccounts({}, (err, accounts) => {
+               accounts.forEach((acct) => {
+                   if (acct.type === 'fiat' && acct.currency === 'fiatCurrency') {
+                       currentBalanceFiat = parseFloat(acct.balance.amount)
+
+                       if (money > currentBalanceFiat) {
+                        failureDialog('Sorry! You don\'t have enough money in your account!');
+                        return;
+                    }
+
+                    let args = {
+                        "amount": btcAmount.toString(),
+                        "currency": "BTC",
+                    };
+                    
+                    acct.buy(args, (err, txn) => {
+                        if (!err) {
+                            successfulDialog(btcAmount)
+                            // Update 'real' balances
+                            refresh();
+                        } else {
+                            failureDialog(err.message);
+                        }
+                    })
+                   }
+               })
+           })
+       }
+   })
+})
