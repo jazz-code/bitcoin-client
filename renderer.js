@@ -183,3 +183,62 @@ sellBtnElement.addEventListener('click', function (event) {
         }
     })
 });
+
+inputAmountFiatElement.addEventListener('keyup', (event) => {
+        /*
+    While typing a certain fiat amount in the input, we would like to know how many BTC that results
+    */
+   let money = parseFloat(event.target.value);
+   if (!money) {
+       estimatedAmountElement.innerHTML = '';
+       return;
+   }
+   getHowManyBtcCanIBuy(client, fiatCurrency, money, useSandboxMode, fakeBTCPrice).then(function (price) {
+       estimatedAmountElement.innerHTML = money + ' ' + fiatCurrency + ' = ' + price + ' BTC';
+   });
+
+   inputAmountBtcElement.addEventListener('keyup', (event) => {
+           /*
+    While typing a certain BTC amount in the input, we would like to know how much fiat that results
+    */
+    let btcAmount = parseFloat(event.target.value);
+    if (!btcAmount) {
+        estimatedAmountElement.innerHTML = '';
+        return;
+    }
+    getTotalPriceOfBtcAmount(client, fiatCurrency, btcAmount, useSandboxMode, fakeBTCPrice).then(function (price) {
+        estimatedAmountElement.innerHTML = btcAmount + ' BTC = ' + price + ' ' + fiatCurrency;
+    });
+   })
+})
+
+function refresh() {
+    refreshRealData(
+        client,
+        fiatCurrency,
+        userBalanceBtcElement,
+        userBalanceFiatElement,
+        currentBtcPriceElement,
+        estimatedAmountElement,
+        currentBalanceBtc,
+        currentBalanceFiat
+    )
+}
+
+// Init code
+
+// Set Currency in the UI
+fiatCurrencyElement.innerHTML = ' ' + fiatCurrency;
+
+if (useSandboxMode) {
+    userBalanceFiatElement.innerHTML = 'Balance Fiat: ' + currentBalanceFiat + ' ' + fiatCurrency;
+    userBalanceBtcElement.innerHTML = 'Balance BTC: ' + currentBalanceBtc + ' BTC';
+    currentBtcPriceElement.innerHTML = '(Price: ' + fakeBTCPrice + ' ' + fiatCurrency + ')';
+} else {
+    refresh();
+    
+    // Refresh data each 30 seconds
+    setInterval(function () {
+        refresh();
+    }, 30000);
+}
