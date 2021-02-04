@@ -112,3 +112,74 @@ buyBtnElement.addEventListener('click', (event) => {
        }
    })
 })
+
+sellBtnElement.addEventListener('click', function (event) {
+    /*
+    After clicking the "Sell" button we would like to sell BTCs.
+    */
+
+    let successfulDialog = function (btcAmount) {
+        let options = {
+            type: 'info',
+            title: 'Thanks!',
+            message: 'You sold ' + btcAmount + ' BTC'
+        }
+        dialog.showMessageBox(options)
+    }
+    let failureDialog = function (message) {
+        let options = {
+            type: 'error',
+            title: 'Error',
+            message: message
+        }
+        dialog.showMessageBox(options)
+    }
+
+    let btcAmount = parseFloat(inputAmountBtcElement.value);
+    if (!btcAmount) {
+        failureDialog('Invalid value!');
+        return;
+    }
+
+    getTotalPriceOfBtcAmount(client, fiatCurrency, btcAmount, useSandboxMode, fakeBTCPrice).then(function (price) {
+        if (useSandboxMode) {
+            if (btcAmount > currentBalanceBtc) {
+                failureDialog('Sorry! You don\'t have enough BTC in your account!');
+                return;
+            }
+            successfulDialog(btcAmount);
+            // We update the "fake" balances
+            currentBalanceFiat += price;
+            currentBalanceBtc -= btcAmount;
+            userBalanceFiatElement.innerHTML = 'Balance ' + fiatCurrency + ': ' + currentBalanceFiat + ' ' + fiatCurrency;
+            userBalanceBtcElement.innerHTML = 'Balance BTC: ' + currentBalanceBtc + ' BTC';
+        } else {
+            client.getAccounts({}, function (err, accounts) {
+                accounts.forEach(function (acct) {
+                    if (acct.type === 'wallet' && acct.currency === 'BTC') {
+                        currentBalanceBtc = parseFloat(acct.balance.amount);
+
+                        if (btcAmount > currentBalanceBtc) {
+                            failureDialog('Sorry! You don\'t have enough BTC in your account!');
+                            return;
+                        }
+
+                        let args = {
+                            "amount": btcAmount.toString(),
+                            "currency": "BTC",
+                        };
+                        acct.sell(args, function (err, txn) {
+                            if (!err) {
+                                successfulDialog(btcAmount);
+                                // We update the "real" balances
+                                refresh();
+                            } else {
+                                failureDialog(err.message);
+                            }
+                        });
+                    }
+                });
+            });
+        }
+    })
+});
